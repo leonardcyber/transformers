@@ -610,7 +610,7 @@ class GPTJModel(GPTJPreTrainedModel):
         all_self_attentions = () if output_attentions else None
         all_hidden_states = () if output_hidden_states else None
         
-        logger.debug("[GPTJ Forward]: Pre-block time: " + str(start-datetime.now()))
+        logger.debug("[GPTJ Forward]: Pre-block time: " + str(datetime.now() - start))
         for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
 
             # Model parallel
@@ -672,7 +672,7 @@ class GPTJModel(GPTJPreTrainedModel):
                     if i == v[-1] and "cuda:" + str(k) != self.last_device:
                         hidden_states = hidden_states.to("cuda:" + str(k + 1))
 
-            logger.debug("[GPTJ Forward]: Block " + str(i) + " time: " + str(start-datetime.now()))
+            logger.debug("[GPTJ Forward]: Block " + str(i) + " time: " + str(datetime.now() - start))
 
         hidden_states = self.ln_f(hidden_states)
 
@@ -684,7 +684,7 @@ class GPTJModel(GPTJPreTrainedModel):
         if not return_dict:
             return tuple(v for v in [hidden_states, presents, all_hidden_states, all_self_attentions] if v is not None)
 
-        logger.debug("[GPT Forward]: Return time" + str(start-datetime.now()))
+        logger.debug("[GPT Forward]: Return time" + str(datetime.now() - start))
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=presents,
