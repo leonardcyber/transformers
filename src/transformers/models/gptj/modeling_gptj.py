@@ -17,12 +17,16 @@
 from typing import Tuple
 
 import torch
-import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+import torch.utils.checkpoint
 
 from ...activations import ACT2FN
-from ...file_utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward
+from ...file_utils import (
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+)
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
@@ -524,6 +528,9 @@ class GPTJModel(GPTJPreTrainedModel):
         output_hidden_states=None,
         return_dict=None,
     ):
+        from datetime import datetime
+        start = datetime.now()
+        logger.debug("[GPTJ Forward]: Started at ", str(start))
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -602,6 +609,8 @@ class GPTJModel(GPTJPreTrainedModel):
         presents = () if use_cache else None
         all_self_attentions = () if output_attentions else None
         all_hidden_states = () if output_hidden_states else None
+        
+        logger.debug("[GPTJ Forward]: Pre-block time: ", str(start-datetime.now()))
         for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
 
             # Model parallel
@@ -663,6 +672,8 @@ class GPTJModel(GPTJPreTrainedModel):
                     if i == v[-1] and "cuda:" + str(k) != self.last_device:
                         hidden_states = hidden_states.to("cuda:" + str(k + 1))
 
+            logger.debug("Block ", str(i), " time: ", str(start-datetime.now()))
+
         hidden_states = self.ln_f(hidden_states)
 
         hidden_states = hidden_states.view(*output_shape)
@@ -673,6 +684,7 @@ class GPTJModel(GPTJPreTrainedModel):
         if not return_dict:
             return tuple(v for v in [hidden_states, presents, all_hidden_states, all_self_attentions] if v is not None)
 
+        logger.debug("[GPT Forward]: Return time", str(start-datetime.now()))
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=presents,
