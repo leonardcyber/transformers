@@ -15,7 +15,7 @@
 """ PyTorch GPT-J model."""
 
 from functools import lru_cache
-from typing import Tuple
+from typing import Dict, Tuple
 
 import torch
 from torch import nn
@@ -51,16 +51,23 @@ GPTJ_PRETRAINED_MODEL_ARCHIVE_LIST = [
     # See all GPT-J models at https://huggingface.co/models?filter=gptj
 ]
 
+fixed_pos_embedding_cache: Dict[
+        Tuple[str, int, int, int], Tuple[torch.Tensor, torch.Tensor]
+] = {}
 
-@lru_cache
+
 def fixed_pos_embedding(x, seq_dim=1, seq_len=None):
     dim = x.shape[-1]
     if seq_len is None:
         seq_len = x.shape[seq_dim]
-    inv_freq = 1.0 / (10000 ** (torch.arange(0, dim, 2) / dim))
-    sinusoid_inp = torch.einsum("i , j -> i j", torch.arange(seq_len), inv_freq).to(x.device).float()
-    return torch.sin(sinusoid_inp), torch.cos(sinusoid_inp)
-
+    device = x.device
+    key = (device, dim, seq_dim, seq_len)
+    if key not in fixed_pos_embedding_cache:
+        inv_freq = 1.0 / (10000 ** (torch.arange(0, dim, 2) / dim))
+        sinusoid_inp = torch.einsum("i , j -> i j", torch.arange(seq_len), inv_freq).to(x.device).float()
+        fixed_pos_embedding_cache[key] = (torch.sin(sinusoid_inp), torch.cos(sinusoid_inp))
+    vals =  fixed_pos_embedding_cache[key]
+    return vals[0].detach().clone(), vals[1].detach().clone()
 
 def rotate_every_two(x):
     x1 = x[:, :, :, ::2]
